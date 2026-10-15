@@ -1,4 +1,4 @@
-# CLI Calculator — Maven + JUnit 5 + GitHub Actions
+# CLI Calculator - Maven + JUnit 5 + GitHub Actions
 
 ![Calculator CI](https://github.com/yangziyi0528/calculator/actions/workflows/ci-calculator.yml/badge.svg)
 
