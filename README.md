@@ -57,8 +57,8 @@ the runtime stage copies only the finished jar into the slim
 docker build -t calculator:v1 .                # build the image
 docker run --rm calculator:v1                  # run with the default 2 + 2
 docker run --rm calculator:v1 10 / 4           # run a custom expression
-docker tag calculator:v1 yangziyi0528/calculator:lab6
-docker push yangziyi0528/calculator:lab6       # publish to Docker Hub
+docker tag calculator:v1 yangziyi666/calculator:lab6
+docker push yangziyi666/calculator:lab6        # publish to Docker Hub
 ```
 
 The CI workflow builds this image (and smoke-tests `+ - * /` inside the
