@@ -20,18 +20,17 @@ FROM maven:3.8-openjdk-17 AS build
 # creates it if it does not exist. Every later instruction runs there.
 WORKDIR /app
 
-# COPY copies pom.xml first, on its own, on purpose: Docker caches each
-# instruction as a layer, so Maven dependencies are re-downloaded only
-# when pom.xml really changes - editing a source file will not
-# invalidate the dependency cache. "." is the destination (/app).
+# ARG declares a variable that can be set at build time with
+# --build-arg. MAVEN_OPTS is handed to the JVM that runs Maven; it is
+# empty by default, but a proxy can be injected on a build host that
+# needs one, e.g.
+#   --build-arg MAVEN_OPTS="-Dhttps.proxyHost=proxy -Dhttps.proxyPort=7890"
+ARG MAVEN_OPTS=""
+ENV MAVEN_OPTS=${MAVEN_OPTS}
+
+# COPY brings the project files into the build stage: first the pom.xml,
+# then the Java source tree under src/.
 COPY pom.xml .
-
-# RUN executes a shell command in a new layer while the image is built.
-# "dependency:go-offline" pre-downloads every declared Maven dependency
-# so this heavy step is cached and later source-code rebuilds stay fast.
-RUN mvn -B dependency:go-offline
-
-# COPY brings the Java source tree into the build stage.
 COPY src ./src
 
 # RUN compiles the sources and packages the fat (shaded) jar with all

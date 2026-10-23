@@ -33,6 +33,15 @@
 
     <build>
         <plugins>
+            <!-- Compiler plugin pinned: Maven 3.8.1 (used inside the maven:3.8
+                 Docker build image) falls back to the ancient 3.1 default,
+                 which ignores maven.compiler.release and fails on JDK 17 -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.11.0</version>
+            </plugin>
+
             <!-- JaCoCo code coverage (Lab 4) -->
             <plugin>
                 <groupId>org.jacoco</groupId>
