@@ -20,13 +20,17 @@ FROM maven:3.8-openjdk-17 AS build
 # creates it if it does not exist. Every later instruction runs there.
 WORKDIR /app
 
-# ARG declares a variable that can be set at build time with
-# --build-arg. MAVEN_OPTS is handed to the JVM that runs Maven; it is
-# empty by default, but a proxy can be injected on a build host that
-# needs one, e.g.
-#   --build-arg MAVEN_OPTS="-Dhttps.proxyHost=proxy -Dhttps.proxyPort=7890"
-ARG MAVEN_OPTS=""
-ENV MAVEN_OPTS=${MAVEN_OPTS}
+# ARG declares a variable that can be set at build time with --build-arg.
+# MAVEN_CENTRAL_MIRROR is empty by default, but on a network where Maven
+# Central is restricted or unstable a mirror can be injected, e.g.
+#   --build-arg MAVEN_CENTRAL_MIRROR=https://maven.aliyun.com/repository/public
+# The conditional RUN then writes a Maven settings.xml that redirects the
+# "central" repository to that mirror while the image is being built.
+ARG MAVEN_CENTRAL_MIRROR=""
+RUN if [ -n "$MAVEN_CENTRAL_MIRROR" ]; then \
+      mkdir -p /root/.m2 && \
+      printf '<settings><mirrors><mirror><id>central-mirror</id><mirrorOf>central</mirrorOf><url>%s</url></mirror></mirrors></settings>' "$MAVEN_CENTRAL_MIRROR" > /root/.m2/settings.xml; \
+    fi
 
 # COPY brings the project files into the build stage: first the pom.xml,
 # then the Java source tree under src/.
