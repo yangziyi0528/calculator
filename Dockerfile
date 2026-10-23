@@ -40,10 +40,12 @@ COPY src ./src
 RUN mvn -B clean package -DskipTests
 
 # ---------- Stage 2: runtime stage ----------
-# A second FROM starts a new, much smaller stage. openjdk:17-jre-slim
-# contains ONLY the Java 17 runtime (no Maven, no compiler, no source
-# code), which keeps the final image small and its attack surface low.
-FROM openjdk:17-jre-slim
+# A second FROM starts a new, much smaller stage. eclipse-temurin:17-jre-alpine
+# contains ONLY the Java 17 runtime (no Maven, no compiler, no source code) on
+# top of the tiny Alpine Linux base, which keeps the final image small and its
+# attack surface low. (The originally suggested openjdk:17-jre-slim image has
+# been retired from Docker Hub, so the maintained Temurin build is used.)
+FROM eclipse-temurin:17-jre-alpine
 
 # WORKDIR defines the default working directory of the runtime container.
 WORKDIR /app

@@ -51,7 +51,7 @@ always reflects the status of the most recent run.
 The project ships with a multi-stage `Dockerfile`: the build stage compiles
 and packages the jar inside the official `maven:3.8-openjdk-17` image, and
 the runtime stage copies only the finished jar into the slim
-`openjdk:17-jre-slim` image.
+`eclipse-temurin:17-jre-alpine` image.
 
 ```bash
 docker build -t calculator:v1 .                # build the image
