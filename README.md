@@ -45,3 +45,23 @@ Every push to `main` and every pull request targeting `main` triggers the
 `Calculator CI` workflow, which compiles the sources and runs the whole test
 suite on JDK 17 and JDK 21 in parallel. The badge at the top of this page
 always reflects the status of the most recent run.
+
+## Docker (Lab 6)
+
+The project ships with a multi-stage `Dockerfile`: the build stage compiles
+and packages the jar inside the official `maven:3.8-openjdk-17` image, and
+the runtime stage copies only the finished jar into the slim
+`openjdk:17-jre-slim` image.
+
+```bash
+docker build -t calculator:v1 .                # build the image
+docker run --rm calculator:v1                  # run with the default 2 + 2
+docker run --rm calculator:v1 10 / 4           # run a custom expression
+docker tag calculator:v1 yangziyi0528/calculator:lab6
+docker push yangziyi0528/calculator:lab6       # publish to Docker Hub
+```
+
+The CI workflow builds this image (and smoke-tests `+ - * /` inside the
+container) after the test matrix passes; on pushes to `main` it also pushes
+`<dockerhub-user>/calculator:lab6` to Docker Hub when the
+`DOCKERHUB_USERNAME` / `DOCKERHUB_TOKEN` secrets are configured.
