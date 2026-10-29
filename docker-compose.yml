@@ -1,0 +1,62 @@
+# ==============================================================
+# docker-compose.yml - Lab 7 Multi-Container Calculator
+# --------------------------------------------------------------
+# Orchestrates the two services of the calculator application:
+#
+#   backend : Java HTTP API (calculator logic), listens on 8000
+#   web     : nginx static frontend + /api reverse proxy, listens on 80
+#
+# Compose puts both containers on one private network (named
+# <project>_default) and runs Docker's embedded DNS server on it.
+# That is why the web container can reach the API simply by the
+# service name "backend" (http://backend:8000) - see web/nginx.conf.
+#
+# Start:   docker compose up --build -d
+# Status:  docker compose ps
+# Logs:    docker compose logs -f
+# Stop:    docker compose down
+# ==============================================================
+
+services:
+
+  # -------------------- backend --------------------
+  backend:
+    # build instead of image: Compose builds this service from the
+    # Dockerfile found in ./backend (no image is pulled).
+    build:
+      context: ./backend
+      # Optional build-arg from Lab 6: redirects Maven Central to a
+      # mirror while the image is built (empty default inside the
+      # Dockerfile keeps the file portable).
+      args:
+        MAVEN_CENTRAL_MIRROR: "https://maven.aliyun.com/repository/public"
+    # Port mapping "host:container": the API becomes reachable on the
+    # host at http://127.0.0.1:8000 (handy for curl tests).
+    ports:
+      - "8000:8000"
+    # environment injects variables into the container. The ApiServer
+    # reads LOG_LEVEL; INFO logs one line per request, visible with
+    # "docker compose logs backend" (optional Task 3 exercise).
+    environment:
+      LOG_LEVEL: INFO
+    # restart policy: restart the container when it exits with a
+    # non-zero code (crash), but not when it is stopped manually.
+    restart: on-failure
+
+  # -------------------- web --------------------
+  web:
+    # Frontend image built from ./web (nginx + static page + proxy).
+    build:
+      context: ./web
+    # The page is served on the host at http://127.0.0.1:8080,
+    # which nginx inside the container serves on port 80.
+    ports:
+      - "8080:80"
+    # Startup order: web depends on backend. Compose starts backend
+    # first. Note: depends_on only waits for the container to be
+    # CREATED/STARTED, not for the Java API to be ready - the nginx
+    # proxy timeouts in web/nginx.conf cover the short JVM boot time.
+    depends_on:
+      - backend
+    # Same restart policy as the backend.
+    restart: on-failure

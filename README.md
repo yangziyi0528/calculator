@@ -1,67 +1,64 @@
-# CLI Calculator - Maven + JUnit 5 + GitHub Actions
+# Calculator - Multi-Container Application with Docker Compose
 
 ![Calculator CI](https://github.com/yangziyi0528/calculator/actions/workflows/ci-calculator.yml/badge.svg)
 
-A small command-line calculator written in Java and built with Maven. This
-project is the continuation of Lab 3 (Maven build) and Lab 4 (unit testing,
-debugging and static analysis), and in Lab 5 it is wired to an automated
-Continuous Integration pipeline running on GitHub Actions.
+The Java calculator from Labs 3-6, since **Lab 7** split into a
+**multi-container application** orchestrated with Docker Compose:
 
-## Features
+```
+browser ──> web (nginx :80, host 8080) ──/api/*──> backend (Java API :8000)
+              static page                            Calculator.eval()
+```
 
-* Basic arithmetic: `+`, `-`, `*`, `/`
-* Extended operators: `^` (power) and `%` (modulo)
-* Division-by-zero protection (`ArithmeticException`)
-* Input validation for blank and non-numeric operands
-* 37 JUnit 5 unit tests
-* JaCoCo code coverage report
-* Checkstyle static code analysis
-* GitHub Actions CI workflow (`.github/workflows/ci-calculator.yml`)
+* `backend/` - Maven project (business logic from Lab 3) wrapped in a small
+  HTTP API (`ApiServer.java`, JDK built-in `HttpServer`, no new dependencies).
+  Its Dockerfile builds a multi-stage image that listens on port 8000.
+* `web/` - static HTML/CSS/JS page packaged into `nginx:1.27-alpine`. nginx
+  serves the page on port 80 and proxies `/api/*` to `http://backend:8000`
+  **by Compose service name** - never localhost.
+* `docker-compose.yml` - defines both services, builds them from their local
+  Dockerfiles, maps `8000:8000` and `8080:80`, sets `depends_on` and
+  `restart: on-failure`, and injects `LOG_LEVEL` into the backend.
 
 ## Requirements
 
-* JDK 17 or newer
-* Maven 3.8 or newer
+* Docker Desktop (with Compose v2) - nothing else, the builds are self-contained
 
-## Build and test
-
-```bash
-mvn clean compile   # compile the sources
-mvn test            # run all JUnit 5 tests
-mvn package         # build the executable jar
-```
-
-## Run
+## Run the whole stack
 
 ```bash
-java -jar target/calculator-1.0.jar 2 + 2      # -> 4.0
-java -jar target/calculator-1.0.jar 10 / 4     # -> 2.5
-java -jar target/calculator-1.0.jar 2 ^ 3      # -> 8.0
+docker compose up --build -d     # build both images and start both containers
+docker compose ps                # check both services are running
+docker compose logs -f backend   # watch API request logs
+docker compose down              # stop and remove containers + network
 ```
+
+Then open <http://127.0.0.1:8080> and calculate. The API is also reachable
+directly on the host:
+
+```bash
+curl "http://127.0.0.1:8000/api/eval?a=2&op=%2B&b=3"     # {"a":"2","op":"+","b":"3","result":5.0}
+```
+
+## Backend API
+
+| Endpoint        | Meaning                                        |
+|-----------------|------------------------------------------------|
+| `GET /api/health` | liveness probe, answers `{"status":"ok"}`    |
+| `GET /api/eval?a=..&op=..&b=..` | evaluate `a op b`, answers JSON |
+
+Supported operators: `+ - * / ^ %`. Errors (blank input, unknown operator,
+division by zero) answer HTTP 400 with `{"error": "..."}`. The `LOG_LEVEL`
+environment variable (see compose file) turns request logging `INFO`/`OFF`.
 
 ## Continuous Integration
 
-Every push to `main` and every pull request targeting `main` triggers the
-`Calculator CI` workflow, which compiles the sources and runs the whole test
-suite on JDK 17 and JDK 21 in parallel. The badge at the top of this page
-always reflects the status of the most recent run.
+Every push to `main` and every PR targeting `main` triggers the workflow
+`.github/workflows/ci-calculator.yml`:
 
-## Docker (Lab 6)
-
-The project ships with a multi-stage `Dockerfile`: the build stage compiles
-and packages the jar inside the official `maven:3.8-openjdk-17` image, and
-the runtime stage copies only the finished jar into the slim
-`eclipse-temurin:17-jre-alpine` image.
-
-```bash
-docker build -t calculator:v1 .                # build the image
-docker run --rm calculator:v1                  # run with the default 2 + 2
-docker run --rm calculator:v1 10 / 4           # run a custom expression
-docker tag calculator:v1 yangziyi666/calculator:lab6
-docker push yangziyi666/calculator:lab6        # publish to Docker Hub
-```
-
-The CI workflow builds this image (and smoke-tests `+ - * /` inside the
-container) after the test matrix passes; on pushes to `main` it also pushes
-`<dockerhub-user>/calculator:lab6` to Docker Hub when the
-`DOCKERHUB_USERNAME` / `DOCKERHUB_TOKEN` secrets are configured.
+1. **Build & Test** - `mvn compile` + JUnit suite on JDK 17 and 21 (Lab 5)
+2. **Backend Image Build & API Smoke Test** - builds `backend/Dockerfile` and
+   calls `/api/eval` for `+ - * /` inside a container (Lab 6/7)
+3. **Compose Build Validation** (Lab 7) - `docker compose config` plus
+   `docker compose build` so a broken compose file or Dockerfile can never
+   reach `main`

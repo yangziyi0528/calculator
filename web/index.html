@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<!--
+  Calculator web frontend (Lab 7)
+  Served by the "web" container (nginx). All API calls go to the
+  RELATIVE path /api/... which nginx proxies to the "backend"
+  container by its Compose service name - see web/nginx.conf.
+  The page never uses localhost and never hard-codes a host.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Calculator - Lab 7 Multi-Container</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="card">
+    <h1>Calculator</h1>
+    <p class="subtitle">Lab 7 &middot; web container &#8594; backend container (Compose network)</p>
+
+    <!-- Operand a -->
+    <div class="row">
+      <label for="operand-a">A</label>
+      <input id="operand-a" type="text" inputmode="decimal" placeholder="e.g. 12" autocomplete="off">
+    </div>
+
+    <!-- Operator: six buttons, the selected one is highlighted -->
+    <div class="row">
+      <label>Operator</label>
+      <div class="operators" id="operators">
+        <button type="button" data-op="+" class="op selected">+</button>
+        <button type="button" data-op="-" class="op">-</button>
+        <button type="button" data-op="*" class="op">&times;</button>
+        <button type="button" data-op="/" class="op">&divide;</button>
+        <button type="button" data-op="^" class="op">^</button>
+        <button type="button" data-op="%" class="op">%</button>
+      </div>
+    </div>
+
+    <!-- Operand b -->
+    <div class="row">
+      <label for="operand-b">B</label>
+      <input id="operand-b" type="text" inputmode="decimal" placeholder="e.g. 4" autocomplete="off">
+    </div>
+
+    <button id="compute" class="compute" type="button">Compute</button>
+
+    <!-- Result panel -->
+    <div id="result" class="result">Enter two numbers and press Compute</div>
+
+    <!-- Last answers, newest first -->
+    <div id="history" class="history"></div>
+
+    <footer>frontend: nginx container &middot; API: <code>/api/eval</code> via service name <code>backend</code></footer>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

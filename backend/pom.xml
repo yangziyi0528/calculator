@@ -9,8 +9,8 @@
     <version>1.0</version>
     <packaging>jar</packaging>
 
-    <name>CLI Calculator</name>
-    <description>Lab 3 - Build a Java CLI Calculator with Maven</description>
+    <name>Calculator Backend API</name>
+    <description>Lab 7 - Calculator HTTP API service (business logic from Lab 3)</description>
 
     <properties>
         <maven.compiler.release>17</maven.compiler.release>
@@ -110,7 +110,7 @@
                             <transformers>
                                 <transformer
                                     implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <mainClass>com.yangziyi.App</mainClass>
+                                    <mainClass>com.yangziyi.ApiServer</mainClass>
                                 </transformer>
                             </transformers>
                         </configuration>

@@ -43,59 +43,67 @@ jobs:
         run: mvn -B test
 
   # ------------------------------------------------------------------
-  # Lab 6 (Task 5): containerization job.
+  # Lab 6 (Task 5) / Lab 7: containerization job.
   # It runs only after BOTH matrix test jobs above have passed, then
-  # builds the Docker image from the Dockerfile. On pushes to main,
-  # with Docker Hub secrets configured, it also tags and pushes the
-  # image to Docker Hub automatically (advanced requirement).
+  # builds the backend image from backend/Dockerfile. Since Lab 7 the
+  # calculator is an HTTP API service, so the smoke test starts the
+  # container and calls the /api/eval endpoint with curl.
   # ------------------------------------------------------------------
   docker:
-    name: Docker Build & Push
+    name: Backend Image Build & API Smoke Test
     runs-on: ubuntu-latest
     needs: build   # gate on the unit-test matrix job above
 
     steps:
-      # Step 1: fetch the repository source code (includes the Dockerfile).
+      # Step 1: fetch the repository source code (includes backend/).
       - name: Checkout source code
         uses: actions/checkout@v5
 
-      # Step 2: build the image exactly like a local "docker build".
-      - name: Build Docker image
-        run: docker build -t calculator:v1 .
+      # Step 2: build the backend image exactly like a local
+      #         "docker build" from the backend directory.
+      - name: Build backend image
+        run: docker build -t calculator-backend:v1 ./backend
 
-      # Step 3: smoke-test the calculator inside the container (+ - * /).
-      #         '*' is quoted so bash does not glob-expand it.
-      - name: Smoke-test calculator in container
+      # Step 3: start the API container and wait until the JVM is up
+      #         (poll /api/health for at most 30 seconds), then call
+      #         /api/eval for + - * /. '+' is sent as %2B so the
+      #         URL decoder on the server keeps it as the plus sign.
+      - name: Smoke-test calculator API in container
         run: |
-          docker run --rm calculator:v1 2 + 2
-          docker run --rm calculator:v1 10 - 4
-          docker run --rm calculator:v1 6 '*' 7
-          docker run --rm calculator:v1 10 / 4
+          docker run -d --name api-test -p 8000:8000 calculator-backend:v1
+          for i in $(seq 1 30); do
+            if curl -fs http://127.0.0.1:8000/api/health > /dev/null; then break; fi
+            sleep 1
+          done
+          echo "2 + 3   -> $(curl -fs 'http://127.0.0.1:8000/api/eval?a=2&op=%2B&b=3')"
+          echo "10 - 4  -> $(curl -fs 'http://127.0.0.1:8000/api/eval?a=10&op=-&b=4')"
+          echo "6 * 7   -> $(curl -fs 'http://127.0.0.1:8000/api/eval?a=6&op=*&b=7')"
+          echo "10 / 4  -> $(curl -fs 'http://127.0.0.1:8000/api/eval?a=10&op=/&b=4')"
+          docker rm -f api-test
 
-      # Step 4 (advanced): auto-push to Docker Hub, but only when
-      #   - the trigger is a push to the main branch, and
-      #   - the two repository secrets are configured under
-      #     Settings -> Secrets and variables -> Actions:
-      #     DOCKERHUB_USERNAME and DOCKERHUB_TOKEN (access token).
-      # Without the secrets the job still passes; it just skips the push.
-      - name: Check Docker Hub credentials
-        id: hub
-        run: |
-          if [ -n "${{ secrets.DOCKERHUB_USERNAME }}" ] && [ -n "${{ secrets.DOCKERHUB_TOKEN }}" ]; then
-            echo "available=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "available=false" >> "$GITHUB_OUTPUT"
-          fi
+  # ------------------------------------------------------------------
+  # Lab 7 (Task 5): Compose validation job.
+  # The CI environment does not keep the stack running; it only checks
+  # that docker-compose.yml is syntactically valid and that BOTH
+  # images can be built from their Dockerfiles. This prevents a broken
+  # compose file or Dockerfile from ever reaching the main branch.
+  # ------------------------------------------------------------------
+  compose:
+    name: Compose Build Validation
+    runs-on: ubuntu-latest
+    needs: build   # run after the unit-test matrix, parallel to docker
 
-      - name: Log in to Docker Hub
-        if: steps.hub.outputs.available == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+    steps:
+      # Step 1: fetch the complete repository (compose file, backend/, web/).
+      - name: Checkout source code
+        uses: actions/checkout@v5
 
-      - name: Tag and push image to Docker Hub
-        if: steps.hub.outputs.available == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: |
-          docker tag calculator:v1 ${{ secrets.DOCKERHUB_USERNAME }}/calculator:lab6
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/calculator:lab6
+      # Step 2: parse and validate docker-compose.yml. A YAML syntax
+      #         error or an invalid field fails this step immediately.
+      - name: Validate docker-compose.yml
+        run: docker compose config --quiet
+
+      # Step 3: build both service images (backend and web) from their
+      #         local Dockerfiles, exactly like a local compose build.
+      - name: docker compose build
+        run: docker compose build
