@@ -27,19 +27,25 @@ jobs:
 
       # Step 2: install the required JDK, matching the project's target release (17).
       #         'cache: maven' also enables caching of the local Maven repository.
+      #         Since Lab 7 the Maven project lives in backend/, so the cache
+      #         must be pointed at backend/pom.xml explicitly.
       - name: Set up JDK ${{ matrix.java }}
         uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: ${{ matrix.java }}
           cache: maven
+          cache-dependency-path: backend/pom.xml
 
-      # Step 3: compile all Java source files.
+      # Step 3: compile all Java source files. Lab 7: run inside backend/,
+      #         the directory that holds pom.xml since the restructure.
       - name: Compile source code
+        working-directory: backend
         run: mvn -B clean compile
 
       # Step 4: execute all JUnit 5 test cases from Lab 4.
       - name: Run unit tests
+        working-directory: backend
         run: mvn -B test
 
   # ------------------------------------------------------------------
